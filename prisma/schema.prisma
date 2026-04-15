@@ -1,0 +1,234 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  phone            String?          @unique // E.164 format e.g. +919876543210
+  passwordHash     String? // optional — OTP-only signup has no password
+  name             String?
+  isEmailVerified  Boolean          @default(false)
+  isPhoneVerified  Boolean          @default(false)
+  twoFactorEnabled Boolean          @default(false)
+  twoFactorMethod  TwoFactorMethod? // null until 2FA is configured
+  dayStartTime     String           @default("00:00")
+  dayEndTime       String           @default("23:59")
+  createdAt        DateTime         @default(now())
+
+  folders      Folder[]
+  tags         Tag[]
+  dailyScores  DailyScore[]
+  otpCodes     OtpCode[]
+  subscription Subscription?
+  payments     Payment[]
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lists List[]
+}
+
+model List {
+  id        String   @id @default(cuid())
+  name      String
+  folderId  String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  folder      Folder       @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  nodes       Node[]
+  tags        Tag[]
+  dailyScores DailyScore[]
+}
+
+model Node {
+  id         String     @id @default(cuid())
+  title      String
+  status     NodeStatus @default(TODO)
+  priority   Priority   @default(MEDIUM)
+  notes      String?
+  startAt    DateTime?
+  endAt      DateTime?
+  reminderAt DateTime?
+  canvasX    Float?
+  canvasY    Float?
+  position   Int        @default(0)
+  listId     String
+  parentId   String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  list     List      @relation(fields: [listId], references: [id], onDelete: Cascade)
+  parent   Node?     @relation("NodeChildren", fields: [parentId], references: [id])
+  children Node[]    @relation("NodeChildren")
+  tags     NodeTag[]
+}
+
+model Tag {
+  id     String  @id @default(cuid())
+  name   String
+  color  String  @default("#888888")
+  userId String
+  listId String? // null = global tag | set = local to this list
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list  List?     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  nodes NodeTag[]
+
+  @@unique([userId, listId, name])
+}
+
+model NodeTag {
+  nodeId String
+  tagId  String
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([nodeId, tagId])
+}
+
+model DailyScore {
+  id         String   @id @default(cuid())
+  userId     String
+  listId     String? // null = overall account score | set = per list score
+  date       String // YYYY-MM-DD
+  totalTasks Int
+  doneTasks  Int
+  points     Int
+  createdAt  DateTime @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list List? @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listId, date])
+}
+
+enum NodeStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// ─── Auth / OTP ──────────────────────────────────────────────────────────────
+
+model OtpCode {
+  id        String     @id @default(cuid())
+  userId    String
+  code      String // bcrypt-hashed OTP — never store plain text
+  type      OtpType
+  channel   OtpChannel
+  expiresAt DateTime
+  usedAt    DateTime? // set when consumed — prevents reuse
+  createdAt DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum OtpType {
+  VERIFY_EMAIL // sent after registration to confirm email
+  VERIFY_PHONE // sent after adding phone to confirm ownership
+  TWO_FACTOR // sent at login when 2FA is active
+  PASSWORD_RESET // sent to allow password reset without login
+}
+
+enum OtpChannel {
+  EMAIL
+  SMS
+}
+
+enum TwoFactorMethod {
+  EMAIL // OTP via email
+  SMS // OTP via SMS
+  TOTP // authenticator app (Google Authenticator, Authy)
+}
+
+// ─── Payments ────────────────────────────────────────────────────────────────
+
+model Plan {
+  id        String       @id @default(cuid())
+  name      String       @unique // "Free", "Pro", "Team"
+  price     Float // monthly price in base currency unit
+  currency  String       @default("USD")
+  interval  PlanInterval @default(MONTHLY)
+  features  Json // flexible feature flags e.g. {"maxLists": 10}
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  userId             String             @unique // one active plan per user
+  planId             String
+  status             SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  gatewayCustomerId  String? // e.g. Stripe customer ID — cus_xxx
+  gatewaySubId       String? // e.g. Stripe subscription ID — sub_xxx
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan     Plan      @relation(fields: [planId], references: [id])
+  payments Payment[]
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  userId           String
+  subscriptionId   String?
+  amount           Float
+  currency         String        @default("USD")
+  status           PaymentStatus @default(PENDING)
+  gateway          String // "stripe" | "razorpay" | "paypal"
+  gatewayPaymentId String? // e.g. Stripe PaymentIntent ID — pi_xxx
+  gatewayOrderId   String? // e.g. Razorpay order ID — order_xxx
+  invoiceUrl       String? // link to downloadable invoice PDF
+  paidAt           DateTime?
+  createdAt        DateTime      @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+}
+
+enum PlanInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIALING // free trial period
+  ACTIVE // paid and current
+  PAST_DUE // payment failed but grace period active
+  CANCELLED // user cancelled — access until period end
+  EXPIRED // period ended with no renewal
+}
+
+enum PaymentStatus {
+  PENDING // payment initiated but not confirmed
+  PAID // successfully charged
+  FAILED // gateway returned failure
+  REFUNDED // full or partial refund issued
+}
