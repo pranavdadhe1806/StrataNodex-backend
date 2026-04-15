@@ -1,6 +1,24 @@
 import { Request, Response, NextFunction } from 'express'
 import * as dailyService from '../services/daily.service'
 
+export const getToday = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const nodes = await dailyService.getTodayNodes(req.user!.id)
+    res.json(nodes)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export const getOverdue = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const nodes = await dailyService.getOverdueNodes(req.user!.id)
+    res.json(nodes)
+  } catch (err) {
+    next(err)
+  }
+}
+
 export const computeScore = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { date } = req.body as { date: string }

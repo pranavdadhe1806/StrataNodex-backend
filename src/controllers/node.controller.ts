@@ -28,6 +28,15 @@ export const create = async (req: Request, res: Response, next: NextFunction): P
   }
 }
 
+export const createChild = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const node = await nodeService.createSubNode(req.user!.id, String(req.params.parentId), req.body)
+    res.status(201).json(node)
+  } catch (err) {
+    next(err)
+  }
+}
+
 export const update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const node = await nodeService.updateNode(req.user!.id, String(req.params.id), req.body)
@@ -41,6 +50,15 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
   try {
     await nodeService.deleteNode(req.user!.id, String(req.params.id))
     res.status(204).send()
+  } catch (err) {
+    next(err)
+  }
+}
+
+export const move = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const node = await nodeService.moveNode(req.user!.id, String(req.params.id), req.body)
+    res.json(node)
   } catch (err) {
     next(err)
   }

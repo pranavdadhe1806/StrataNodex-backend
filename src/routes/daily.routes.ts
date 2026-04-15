@@ -1,14 +1,16 @@
 import { Router } from 'express'
 import { authenticate } from '../middleware/auth.middleware'
-import { computeScore, getScore } from '../controllers/daily.controller'
+import { getToday, getOverdue, computeScore, getScore } from '../controllers/daily.controller'
 
 const router = Router()
 router.use(authenticate)
 
-// POST /api/daily/compute — triggers score computation for a given date
-router.post('/compute', computeScore)
+// Virtual daily task views
+router.get('/today', getToday)
+router.get('/overdue', getOverdue)
 
-// GET /api/daily/:date — get score for a specific date (YYYY-MM-DD)
+// Gamification: score for a specific date
+router.post('/compute', computeScore)
 router.get('/:date', getScore)
 
 export default router
