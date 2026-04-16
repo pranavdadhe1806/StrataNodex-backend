@@ -714,6 +714,147 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "07. Scores (Phase 3)",
+			"item": [
+				{
+					"name": "Compute Daily Score",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\": \"2026-04-16\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/daily/compute",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"daily",
+								"compute"
+							]
+						},
+						"description": "Computes and stores today's score. Append-only — 409 if you call twice for the same date."
+					},
+					"response": []
+				},
+				{
+					"name": "Compute Per-List Score",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\": \"2026-04-16\",\n    \"listId\": \"{{listId}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/daily/compute",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"daily",
+								"compute"
+							]
+						},
+						"description": "Compute score for a specific list only."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Score for Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/daily/2026-04-16",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"daily",
+								"2026-04-16"
+							]
+						},
+						"description": "Get stored score row for a specific YYYY-MM-DD date."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Score History (Overall)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/scores",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"scores"
+							]
+						},
+						"description": "Returns last 30 overall daily scores for the user, newest first."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Score History (Per List)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/scores?listId={{listId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"scores"
+							],
+							"query": [
+								{
+									"key": "listId",
+									"value": "{{listId}}"
+								}
+							]
+						},
+						"description": "Returns score history filtered by a specific list."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Streak",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/scores/streak",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"scores",
+								"streak"
+							]
+						},
+						"description": "Returns { streak: number } — consecutive days with points > 0."
+					},
+					"response": []
+				}
+			]
 		}
 	],
 	"auth": {
