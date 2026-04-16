@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from 'express'
 
-export const errorHandler = (err: Error, req: Request, res: Response, _next: NextFunction): void => {
+type HttpError = Error & { statusCode?: number }
+
+export const errorHandler = (err: HttpError, req: Request, res: Response, _next: NextFunction): void => {
   console.error(err.stack)
-  res.status(500).json({ error: err.message || 'Internal server error' })
+  const status = err.statusCode ?? 500
+  res.status(status).json({ error: err.message || 'Internal server error' })
 }
