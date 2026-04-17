@@ -2,7 +2,9 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
+import rateLimit from 'express-rate-limit'
 import { errorHandler } from './middleware/errorHandler'
+import { env } from './config/env'
 
 import authRoutes from './routes/auth.routes'
 import otpRoutes from './routes/otp.routes'
@@ -15,11 +17,29 @@ import scoreRoutes from './routes/score.routes'
 
 const app = express()
 
+// ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet())
-app.use(cors())
+app.use(cors({
+  origin: env.ALLOWED_ORIGINS.split(','),
+  credentials: true,
+}))
 app.use(morgan('dev'))
 app.use(express.json())
 
+// ─── Rate Limiting ────────────────────────────────────────────────────────────
+const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 })
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many attempts, please try again later' },
+})
+const otpLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 3 })
+
+app.use('/api', generalLimiter)
+app.use('/api/auth', authLimiter)
+app.use('/api/otp', otpLimiter)
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes)
 app.use('/api/otp', otpRoutes)
 app.use('/api/folders', folderRoutes)
