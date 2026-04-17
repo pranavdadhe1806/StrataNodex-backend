@@ -29,6 +29,10 @@ app.use('/api/tags', tagRoutes)
 app.use('/api/daily', dailyRoutes)
 app.use('/api/scores', scoreRoutes)
 
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() })
+})
+
 app.use(errorHandler)
 
 export default app

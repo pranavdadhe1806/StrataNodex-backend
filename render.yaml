@@ -1,0 +1,34 @@
+services:
+  # ─── API Service ─────────────────────────────────────────────────────────
+  - type: web
+    name: stratanodex-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: singapore
+    plan: free
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: stratanodex-redis
+          property: connectionString
+
+  # ─── Redis Service ───────────────────────────────────────────────────────
+  - type: redis
+    name: stratanodex-redis
+    region: singapore
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []

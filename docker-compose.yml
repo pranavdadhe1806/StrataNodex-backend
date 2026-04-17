@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # ─── Redis Service ─────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: stratanodex-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - stratanodex-network
+
+  # ─── API Service (Development) ─────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: stratanodex-api
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - /app/node_modules
+    command: npm run dev
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - stratanodex-network
+    restart: unless-stopped
+
+  # ─── API Service (Production) ──────────────────────────────────────────────
+  api-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: stratanodex-api-prod
+    ports:
+      - "3001:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - stratanodex-network
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  redis-data:
+    driver: local
+
+networks:
+  stratanodex-network:
+    driver: bridge

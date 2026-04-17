@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      target: production
+    environment:
+      - NODE_ENV=production
+    command: node dist/index.js
+    restart: always
