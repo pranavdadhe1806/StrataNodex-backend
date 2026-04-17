@@ -1,5 +1,6 @@
 import prisma from '../config/prisma'
 import { CreateNodeInput, UpdateNodeInput } from '../schemas/node.schema'
+import { reminderQueue } from '../jobs/queue'
 
 // ─── Ownership helpers ────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ export const createNode = async (userId: string, input: CreateNodeInput) => {
 
   const { tagIds, startAt, endAt, reminderAt, ...rest } = input
 
-  return prisma.node.create({
+  const node = await prisma.node.create({
     data: {
       ...rest,
       startAt: startAt ? new Date(startAt) : undefined,
@@ -73,6 +74,19 @@ export const createNode = async (userId: string, input: CreateNodeInput) => {
     },
     include: nodeInclude,
   })
+
+  if (reminderAt) {
+    const delay = new Date(reminderAt).getTime() - Date.now()
+    if (delay > 0) {
+      await reminderQueue.add(
+        'reminder',
+        { nodeId: node.id, userId },
+        { delay, jobId: `reminder-${node.id}` },
+      )
+    }
+  }
+
+  return node
 }
 
 // ─── Create sub-node (child) — listId derived from parent ─────────────────────
@@ -82,7 +96,7 @@ export const createSubNode = async (userId: string, parentId: string, input: Omi
 
   const { tagIds, startAt, endAt, reminderAt, ...rest } = input
 
-  return prisma.node.create({
+  const node = await prisma.node.create({
     data: {
       ...rest,
       listId: parent.listId,
@@ -94,6 +108,19 @@ export const createSubNode = async (userId: string, parentId: string, input: Omi
     },
     include: nodeInclude,
   })
+
+  if (reminderAt) {
+    const delay = new Date(reminderAt).getTime() - Date.now()
+    if (delay > 0) {
+      await reminderQueue.add(
+        'reminder',
+        { nodeId: node.id, userId },
+        { delay, jobId: `reminder-${node.id}` },
+      )
+    }
+  }
+
+  return node
 }
 
 // ─── Update ───────────────────────────────────────────────────────────────────
@@ -103,7 +130,7 @@ export const updateNode = async (userId: string, nodeId: string, input: UpdateNo
 
   const { tagIds, startAt, endAt, reminderAt, ...rest } = input
 
-  return prisma.node.update({
+  const node = await prisma.node.update({
     where: { id: nodeId },
     data: {
       ...rest,
@@ -120,6 +147,19 @@ export const updateNode = async (userId: string, nodeId: string, input: UpdateNo
     },
     include: nodeInclude,
   })
+
+  if (reminderAt) {
+    const delay = new Date(reminderAt).getTime() - Date.now()
+    if (delay > 0) {
+      await reminderQueue.add(
+        'reminder',
+        { nodeId, userId },
+        { delay, jobId: `reminder-${nodeId}` },
+      )
+    }
+  }
+
+  return node
 }
 
 // ─── Delete ───────────────────────────────────────────────────────────────────

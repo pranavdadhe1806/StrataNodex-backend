@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import * as dailyService from '../services/daily.service'
-import * as scoreService from '../services/score.service'
+import { rolloverQueue } from '../jobs/queue'
 
 /**
  * GET /api/daily/today
@@ -31,13 +31,17 @@ export const getOverdue = async (req: Request, res: Response, next: NextFunction
 /**
  * POST /api/daily/compute
  * Body: { date: 'YYYY-MM-DD', listId?: string }
- * Computes and stores the daily score. Append-only — 409 if already exists.
+ * Enqueues a rollover job — processed asynchronously by rolloverWorker.
  */
 export const computeScore = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { date, listId } = req.body as { date: string; listId?: string }
-    const score = await scoreService.computeAndStoreDailyScore(req.user!.id, date, listId)
-    res.status(201).json(score)
+    const job = await rolloverQueue.add('rollover', {
+      userId: req.user!.id,
+      date,
+      listId,
+    })
+    res.status(202).json({ message: 'Score computation queued', jobId: job.id })
   } catch (err) {
     next(err)
   }
