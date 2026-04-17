@@ -44,6 +44,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
+          load: true
           tags: stratanodex-backend:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
