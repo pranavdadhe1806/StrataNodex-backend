@@ -4,6 +4,7 @@ import { OtpType, OtpChannel, TwoFactorMethod } from '@prisma/client'
 import prisma from '../config/prisma'
 import { env } from '../config/env'
 import * as otpService from './otp.service'
+import { AppError } from '../utils/AppError'
 
 // Helper — build JWT with correct options despite strict type quirks in @types/jsonwebtoken
 const signToken = (userId: string): string =>
@@ -34,7 +35,7 @@ export const registerWithPassword = async (input: {
   name?: string
 }) => {
   const existing = await prisma.user.findUnique({ where: { email: input.email } })
-  if (existing) throw new Error('Email already in use')
+  if (existing) throw new AppError(409, 'Email already in use')
 
   const passwordHash = await bcrypt.hash(input.password, 12)
   const user = await prisma.user.create({
@@ -52,11 +53,11 @@ export const registerWithPassword = async (input: {
 
 export const loginWithPassword = async (input: { email: string; password: string }) => {
   const user = await prisma.user.findUnique({ where: { email: input.email } })
-  if (!user) throw new Error('Invalid credentials')
-  if (!user.passwordHash) throw new Error('This account uses OTP login')
+  if (!user) throw new AppError(401, 'Invalid credentials')
+  if (!user.passwordHash) throw new AppError(401, 'This account uses OTP login')
 
   const valid = await bcrypt.compare(input.password, user.passwordHash)
-  if (!valid) throw new Error('Invalid credentials')
+  if (!valid) throw new AppError(401, 'Invalid credentials')
 
   if (user.twoFactorEnabled && user.twoFactorMethod) {
     // Map TwoFactorMethod to OtpChannel (TOTP uses EMAIL as fallback in this phase)
@@ -86,7 +87,7 @@ export const getMe = async (userId: string) => {
 
 export const requestPhoneOtp = async (phone: string) => {
   const user = await prisma.user.findUnique({ where: { phone } })
-  if (!user) throw new Error('No account found with this number')
+  if (!user) throw new AppError(404, 'No account found with this number')
 
   const otp = await otpService.generateOtp(user.id, OtpType.TWO_FACTOR, OtpChannel.SMS)
   console.log(`[DEV] Phone OTP for ${phone}: ${otp}`)
@@ -96,7 +97,7 @@ export const requestPhoneOtp = async (phone: string) => {
 
 export const verifyPhoneLogin = async (input: { phone: string; code: string }) => {
   const user = await prisma.user.findUnique({ where: { phone: input.phone } })
-  if (!user) throw new Error('No account found with this number')
+  if (!user) throw new AppError(404, 'No account found with this number')
 
   await otpService.verifyOtp(user.id, input.code, OtpType.TWO_FACTOR)
 
@@ -126,7 +127,7 @@ export const resetPassword = async (input: {
   newPassword: string
 }) => {
   const user = await prisma.user.findUnique({ where: { email: input.email } })
-  if (!user) throw new Error('Invalid request')
+  if (!user) throw new AppError(400, 'Invalid request')
 
   await otpService.verifyOtp(user.id, input.code, OtpType.PASSWORD_RESET)
 

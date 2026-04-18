@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt'
 import { OtpType, OtpChannel } from '@prisma/client'
 import prisma from '../config/prisma'
+import { AppError } from '../utils/AppError'
 
 /**
  * Generates a 6-digit OTP, hashes it, stores in DB, and returns the plain code.
@@ -42,11 +43,11 @@ export const verifyOtp = async (
     orderBy: { createdAt: 'desc' },
   })
 
-  if (!record) throw new Error('OTP not found or already used')
-  if (record.expiresAt < new Date()) throw new Error('OTP has expired')
+  if (!record) throw new AppError(400, 'OTP not found or already used')
+  if (record.expiresAt < new Date()) throw new AppError(400, 'OTP has expired')
 
   const isValid = await bcrypt.compare(plainCode, record.code)
-  if (!isValid) throw new Error('Invalid OTP')
+  if (!isValid) throw new AppError(400, 'Invalid OTP')
 
   // Stamp as used — prevents reuse
   await prisma.otpCode.update({
