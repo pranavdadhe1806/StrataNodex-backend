@@ -12,9 +12,9 @@ export const create = async (req: Request, res: Response, next: NextFunction): P
 
     // The URL the CLI will open in the browser
     // In dev: http://localhost:5173/auth/cli?session=<code>
-    // In prod: https://stratanodex.vercel.app/auth/cli?session=<code>
-    const baseUrl = process.env.WEB_APP_URL ?? 'http://localhost:5173'
-    const url = `${baseUrl}/auth/cli?session=${code}`
+    // In prod: https://stratanodex-landing-page.vercel.app/#auth?session=<code>
+    const baseUrl = process.env.WEB_APP_URL ?? 'https://stratanodex-landing-page.vercel.app'
+    const url = `${baseUrl}/#auth?session=${code}`
 
     res.status(201).json({ code, url, expiresAt })
   } catch (err) {
