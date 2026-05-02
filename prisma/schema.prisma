@@ -144,6 +144,15 @@ model OtpCode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model CliSession {
+  id        String    @id @default(cuid())
+  code      String    @unique  // random 32-char hex — what the CLI polls with
+  token     String?            // JWT — null until user completes login on website
+  expiresAt DateTime           // 10 minutes from creation
+  usedAt    DateTime?          // set when CLI claims the token — prevents reuse
+  createdAt DateTime  @default(now())
+}
+
 enum OtpType {
   VERIFY_EMAIL // sent after registration to confirm email
   VERIFY_PHONE // sent after adding phone to confirm ownership

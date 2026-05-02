@@ -14,6 +14,7 @@ import nodeRoutes from './routes/node.routes'
 import tagRoutes from './routes/tag.routes'
 import dailyRoutes from './routes/daily.routes'
 import scoreRoutes from './routes/score.routes'
+import cliSessionRoutes from './routes/cliSession.routes'
 
 const app = express()
 
@@ -36,12 +37,19 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts, please try again later' },
 })
 const otpLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 3 })
+const cliSessionLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,  // 1 minute
+  max: 60,                   // 60 polls per minute = 1 per second max
+  message: { error: 'Too many requests' },
+})
 
 app.use('/api', generalLimiter)
+app.use('/api/auth/cli-session', cliSessionLimiter) // must come before authLimiter
 app.use('/api/auth', authLimiter)
 app.use('/api/otp', otpLimiter)
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+app.use('/api/auth/cli-session', cliSessionRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/otp', otpRoutes)
 app.use('/api/folders', folderRoutes)

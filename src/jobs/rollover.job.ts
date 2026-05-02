@@ -2,6 +2,7 @@ import { Worker } from 'bullmq'
 import Redis from 'ioredis'
 import { env } from '../config/env'
 import { computeAndStoreDailyScore } from '../services/score.service'
+import prisma from '../config/prisma'
 
 interface RolloverJobData {
   userId: string
@@ -16,6 +17,17 @@ export const rolloverWorker = new Worker<RolloverJobData>(
   'rollover',
   async (job) => {
     const { userId, date, listId } = job.data
+
+    // Clean up expired CLI sessions on every rollover run
+    try {
+      const { count } = await prisma.cliSession.deleteMany({
+        where: { expiresAt: { lt: new Date() } },
+      })
+      if (count > 0) console.log(`[ROLLOVER] Cleaned up ${count} expired CLI session(s)`)
+    } catch (cleanupErr) {
+      console.error('[ROLLOVER] CLI session cleanup failed:', cleanupErr)
+    }
+
 
     console.log(
       `[ROLLOVER] Computing score for user ${userId} on ${date}${listId ? ` (list: ${listId})` : ''}`,
