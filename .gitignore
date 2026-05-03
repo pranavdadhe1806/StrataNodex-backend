@@ -35,3 +35,6 @@ ehthumbs.db
 *.tsbuildinfo
 .npm
 .eslintcache
+
+# PLAN MD Files
+PLAN/
