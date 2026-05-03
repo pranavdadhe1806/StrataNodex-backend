@@ -5,6 +5,7 @@ import prisma from '../config/prisma'
 import { env } from '../config/env'
 import * as otpService from './otp.service'
 import { AppError } from '../utils/AppError'
+import { sendOtpEmail } from './mailer'
 
 // Helper — build JWT with correct options despite strict type quirks in @types/jsonwebtoken
 const signToken = (userId: string): string =>
@@ -44,7 +45,12 @@ export const registerWithPassword = async (input: {
   })
 
   const otp = await otpService.generateOtp(user.id, OtpType.VERIFY_EMAIL, OtpChannel.EMAIL)
-  console.log(`[DEV] Email OTP for ${input.email}: ${otp}`)
+  try {
+    await sendOtpEmail(input.email, otp)
+  } catch (err) {
+    console.error('Failed to send OTP email:', err)
+    throw new AppError(500, 'Failed to send verification email. Try again.')
+  }
 
   return { user, message: 'Check your email for OTP' }
 }
@@ -64,7 +70,14 @@ export const loginWithPassword = async (input: { email: string; password: string
     const channel =
       user.twoFactorMethod === TwoFactorMethod.SMS ? OtpChannel.SMS : OtpChannel.EMAIL
     const otp = await otpService.generateOtp(user.id, OtpType.TWO_FACTOR, channel)
-    console.log(`[DEV] 2FA OTP for ${user.email}: ${otp}`)
+    if (channel === OtpChannel.EMAIL) {
+      try {
+        await sendOtpEmail(user.email, otp)
+      } catch (err) {
+        console.error('Failed to send 2FA OTP email:', err)
+        throw new AppError(500, 'Failed to send verification email. Try again.')
+      }
+    }
     return { requiresTwoFactor: true, userId: user.id }
   }
 
@@ -90,7 +103,8 @@ export const requestPhoneOtp = async (phone: string) => {
   if (!user) throw new AppError(404, 'No account found with this number')
 
   const otp = await otpService.generateOtp(user.id, OtpType.TWO_FACTOR, OtpChannel.SMS)
-  console.log(`[DEV] Phone OTP for ${phone}: ${otp}`)
+  // SMS delivery — wire an SMS provider here when ready
+  console.warn(`[TODO] SMS OTP for ${phone}: ${otp}`)
 
   return { message: 'OTP sent to your phone' }
 }
@@ -115,7 +129,12 @@ export const requestPasswordReset = async (email: string) => {
   // Silent return — don't leak whether the email exists
   if (user) {
     const otp = await otpService.generateOtp(user.id, OtpType.PASSWORD_RESET, OtpChannel.EMAIL)
-    console.log(`[DEV] Password reset OTP for ${email}: ${otp}`)
+    try {
+      await sendOtpEmail(email, otp)
+    } catch (err) {
+      console.error('Failed to send password reset OTP email:', err)
+      // Silent — don't leak whether the email exists or mail failed
+    }
   }
 
   return { message: 'If the email exists, you will receive an OTP' }
@@ -186,6 +205,16 @@ export const verifyPhoneOtp = async (userId: string, code: string) => {
 
 export const resendOtp = async (userId: string, type: OtpType, channel: OtpChannel) => {
   const otp = await otpService.generateOtp(userId, type, channel)
-  console.log(`[DEV] Resent OTP (${type} via ${channel}): ${otp}`)
+  if (channel === OtpChannel.EMAIL) {
+    try {
+      await sendOtpEmail(
+        (await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } })).email,
+        otp,
+      )
+    } catch (err) {
+      console.error('Failed to resend OTP email:', err)
+      throw new AppError(500, 'Failed to send verification email. Try again.')
+    }
+  }
   return { message: 'OTP resent' }
 }
