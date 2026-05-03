@@ -23,7 +23,12 @@ app.set('trust proxy', 1)
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet())
 app.use(cors({
-  origin: env.ALLOWED_ORIGINS.split(','),
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://stratanodex-landing-page.vercel.app',
+    /\.vercel\.app$/,
+  ],
   credentials: true,
 }))
 app.use(morgan('dev'))
