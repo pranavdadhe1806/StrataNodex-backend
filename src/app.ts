@@ -42,14 +42,23 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts, please try again later' },
 })
 const otpLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 3 })
-const cliSessionLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,  // 1 minute
-  max: 60,                   // 60 polls per minute = 1 per second max
+// Create: 20 sessions per 15 min (generous but not abusable)
+const cliSessionCreateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many login attempts, please wait a moment.' },
+})
+// Poll: 120 per minute = every 0.5s — well above the 2s interval the CLI uses
+const cliSessionPollLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 120,
   message: { error: 'Too many requests' },
 })
 
 app.use('/api', generalLimiter)
-app.use('/api/auth/cli-session', cliSessionLimiter) // must come before authLimiter
+// Apply per-operation limiters BEFORE the general authLimiter
+app.use('/api/auth/cli-session/:code', cliSessionPollLimiter)
+app.use('/api/auth/cli-session', cliSessionCreateLimiter)
 app.use('/api/auth', authLimiter)
 app.use('/api/otp', otpLimiter)
 
