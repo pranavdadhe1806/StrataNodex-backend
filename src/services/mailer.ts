@@ -1,19 +1,18 @@
-import nodemailer from 'nodemailer';
+import { BrevoClient } from '@getbrevo/brevo';
 
-export const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASS,
-  },
+const client = new BrevoClient({
+  apiKey: process.env.BREVO_API_KEY as string,
 });
 
 export async function sendOtpEmail(to: string, otp: string): Promise<void> {
-  await transporter.sendMail({
-    from: `"StrataNodex" <${process.env.GMAIL_USER}>`,
-    to,
+  await client.transactionalEmails.sendTransacEmail({
     subject: 'Your StrataNodex verification code',
-    html: `
+    sender: {
+      name: 'StrataNodex',
+      email: process.env.BREVO_SENDER_EMAIL as string,
+    },
+    to: [{ email: to }],
+    htmlContent: `
       <div style="font-family: monospace; background: #0d1117; color: #e6edf3; padding: 32px; border-radius: 8px; max-width: 400px;">
         <h2 style="color: #00bfff; margin: 0 0 8px;">StrataNodex</h2>
         <p style="color: #8b949e; margin: 0 0 24px;">Your verification code</p>
