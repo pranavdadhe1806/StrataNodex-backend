@@ -52,7 +52,8 @@ export const registerWithPassword = async (input: {
     throw new AppError(500, 'Failed to send verification email. Try again.')
   }
 
-  return { user, message: 'Check your email for OTP' }
+  const token = signToken(user.id)
+  return { user, token, message: 'Check your email for OTP' }
 }
 
 // ─── Login ───────────────────────────────────────────────────────────────────
