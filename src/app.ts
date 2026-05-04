@@ -35,20 +35,24 @@ app.use(morgan('dev'))
 app.use(express.json())
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
-const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 })
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000, // raised — CLI polling at 2s = 30 req/min, 450/15min per session
+  skip: (req) => req.path.startsWith('/api/auth/cli-session'), // excluded — has own limiter
+})
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: { error: 'Too many attempts, please try again later' },
 })
 const otpLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 3 })
-// Create: 20 sessions per 15 min (generous but not abusable)
+// Create: 20 new sessions per 15 min per IP
 const cliSessionCreateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: { error: 'Too many login attempts, please wait a moment.' },
 })
-// Poll: 120 per minute = every 0.5s — well above the 2s interval the CLI uses
+// Poll: 120 per minute — well above the 2s CLI interval
 const cliSessionPollLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 120,
@@ -56,7 +60,7 @@ const cliSessionPollLimiter = rateLimit({
 })
 
 app.use('/api', generalLimiter)
-// Apply per-operation limiters BEFORE the general authLimiter
+// Specific limiters for cli-session (before authLimiter so they take precedence)
 app.use('/api/auth/cli-session/:code', cliSessionPollLimiter)
 app.use('/api/auth/cli-session', cliSessionCreateLimiter)
 app.use('/api/auth', authLimiter)
