@@ -23,12 +23,14 @@ app.set('trust proxy', 1)
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet())
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'https://stratanodex-landing-page.vercel.app',
-    /\.vercel\.app$/,
-  ],
+  origin: function (origin, callback) {
+    const allowed = env.ALLOWED_ORIGINS.split(',');
+    if (!origin || allowed.includes(origin) || /\.vercel\.app$/.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }))
 app.use(morgan('dev'))
@@ -37,32 +39,19 @@ app.use(express.json())
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000, // raised — CLI polling at 2s = 30 req/min, 450/15min per session
-  skip: (req) => req.path.startsWith('/api/auth/cli-session'), // excluded — has own limiter
+  max: 1000,
+  skip: (req) => req.path.startsWith('/auth/cli-session'), // req.path is relative to /api mount
 })
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
+  skip: (req) => req.path.startsWith('/cli-session'), // req.path is relative to /api/auth mount
   message: { error: 'Too many attempts, please try again later' },
 })
 const otpLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 3 })
-// Create: 20 new sessions per 15 min per IP
-const cliSessionCreateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  message: { error: 'Too many login attempts, please wait a moment.' },
-})
-// Poll: 120 per minute — well above the 2s CLI interval
-const cliSessionPollLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 120,
-  message: { error: 'Too many requests' },
-})
 
 app.use('/api', generalLimiter)
-// Specific limiters for cli-session (before authLimiter so they take precedence)
-app.use('/api/auth/cli-session/:code', cliSessionPollLimiter)
-app.use('/api/auth/cli-session', cliSessionCreateLimiter)
+// CLI session rate limiters are applied directly in cliSession.routes.ts
 app.use('/api/auth', authLimiter)
 app.use('/api/otp', otpLimiter)
 

@@ -14,7 +14,7 @@ export const create = async (req: Request, res: Response, next: NextFunction): P
     // In dev: http://localhost:5173/auth/cli?session=<code>
     // In prod: https://stratanodex-landing-page.vercel.app/#auth?session=<code>
     const baseUrl = process.env.WEB_APP_URL ?? 'https://stratanodex-landing-page.vercel.app'
-    const url = `${baseUrl}/#auth?session=${code}`
+    const url = `${baseUrl}/?session=${code}#auth`
 
     res.status(201).json({ code, url, expiresAt })
   } catch (err) {
