@@ -2,18 +2,28 @@ name: Keep Render Alive
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # every 10 minutes
+    - cron: '*/10 * * * *'  # every 10 minutes (GitHub may delay up to ~20min on free tier)
+  workflow_dispatch:         # allow manual trigger from GitHub UI
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Render health endpoint
+      - name: Ping Render health endpoint (with retry)
         run: |
-          response=$(curl -fsS -o /dev/null -w "%{http_code}" https://stratanodex-backend.onrender.com/health)
-          if [ "$response" = "200" ]; then
-            echo "Service is alive (HTTP $response)"
-          else
-            echo "Unexpected response: HTTP $response"
-            exit 1
-          fi
+          echo "Pinging https://stratanodex-backend.onrender.com/health ..."
+          for i in 1 2 3; do
+            response=$(curl -fsS -o /dev/null -w "%{http_code}" \
+              --max-time 60 \
+              --retry 2 \
+              --retry-delay 5 \
+              https://stratanodex-backend.onrender.com/health)
+            if [ "$response" = "200" ]; then
+              echo "✅ Attempt $i: Service is alive (HTTP $response)"
+              exit 0
+            fi
+            echo "⚠️  Attempt $i: Unexpected response HTTP $response — retrying in 10s..."
+            sleep 10
+          done
+          echo "❌ All attempts failed. Service may be down."
+          exit 1
