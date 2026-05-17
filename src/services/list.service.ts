@@ -20,6 +20,14 @@ export const getLists = async (userId: string, folderId: string) => {
   return prisma.list.findMany({
     where: { folderId },
     orderBy: { position: 'asc' },
+    include: {
+      _count: { select: { nodes: true } },
+      nodes: {
+        take: 5,
+        orderBy: { position: 'asc' },
+        select: { id: true, title: true, status: true },
+      },
+    },
   })
 }
 

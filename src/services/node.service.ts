@@ -33,11 +33,11 @@ const nodeInclude = {
 
 export const getNodes = async (userId: string, listId: string) => {
   await assertListOwnership(userId, listId)
-  // Return only root-level nodes — children are nested inside each node
+  // Return all nodes flat — frontend buildTree reconstructs the hierarchy at any depth
   return prisma.node.findMany({
-    where: { listId, parentId: null },
+    where: { listId },
     orderBy: { position: 'asc' },
-    include: nodeInclude,
+    include: { tags: { include: { tag: true } } },
   })
 }
 
