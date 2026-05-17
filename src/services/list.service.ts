@@ -31,6 +31,21 @@ export const getLists = async (userId: string, folderId: string) => {
   })
 }
 
+export const getList = async (userId: string, listId: string) => {
+  await assertListOwnership(userId, listId)
+  return prisma.list.findFirst({
+    where: { id: listId },
+    include: {
+      _count: { select: { nodes: true } },
+      nodes: {
+        take: 5,
+        orderBy: { position: 'asc' },
+        select: { id: true, title: true, status: true },
+      },
+    },
+  })
+}
+
 export const createList = async (userId: string, input: CreateListInput) => {
   await assertFolderOwnership(userId, input.folderId)
   return prisma.list.create({

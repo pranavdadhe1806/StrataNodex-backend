@@ -10,6 +10,15 @@ export const getAll = async (req: Request, res: Response, next: NextFunction): P
   }
 }
 
+export const getOne = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const list = await listService.getList(req.user!.id, String(req.params.id))
+    res.json(list)
+  } catch (err) {
+    next(err)
+  }
+}
+
 export const create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const list = await listService.createList(req.user!.id, req.body)
