@@ -6,6 +6,7 @@ import { env } from '../config/env'
 import * as otpService from './otp.service'
 import { AppError } from '../utils/AppError'
 import { sendOtpEmail } from './mailer'
+import { getOrCreateDailyList } from './daily.service'
 
 // Helper — build JWT with correct options despite strict type quirks in @types/jsonwebtoken
 const signToken = (userId: string): string =>
@@ -51,6 +52,9 @@ export const registerWithPassword = async (input: {
     console.error('Failed to send OTP email:', err)
     throw new AppError(500, 'Failed to send verification email. Try again.')
   }
+
+  // Provision Daily Tasks folder + list for every new account
+  await getOrCreateDailyList(user.id)
 
   const token = signToken(user.id)
   return { user, token, message: 'Check your email for OTP' }

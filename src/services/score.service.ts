@@ -38,9 +38,15 @@ export const computeAndStoreDailyScore = async (
     throw err
   }
 
-  // Count tasks — scoped to list if provided, otherwise all user's nodes
-  const where = listId
-    ? { listId, list: { folder: { userId } } }
+  // For overall score (no listId), scope to the user's Daily Task List
+  let resolvedListId = listId
+  if (!resolvedListId) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { dailyListId: true } })
+    resolvedListId = user?.dailyListId ?? undefined
+  }
+
+  const where = resolvedListId
+    ? { listId: resolvedListId, list: { folder: { userId } } }
     : { list: { folder: { userId } } }
 
   const nodes = await prisma.node.findMany({

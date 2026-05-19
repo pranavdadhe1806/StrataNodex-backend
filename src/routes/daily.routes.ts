@@ -1,9 +1,14 @@
 import { Router } from 'express'
 import { authenticate } from '../middleware/auth.middleware'
-import { getToday, getOverdue, computeScore, getScore } from '../controllers/daily.controller'
+import { getDailyList, addToDaily, removeFromDaily, getToday, getOverdue, computeScore, getScore } from '../controllers/daily.controller'
 
 const router = Router()
 router.use(authenticate)
+
+// Daily Task List (real list with sync)
+router.get('/list', getDailyList)
+router.post('/add/:nodeId', addToDaily)
+router.delete('/remove/:nodeId', removeFromDaily)
 
 // Virtual daily task views
 router.get('/today', getToday)

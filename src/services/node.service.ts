@@ -134,9 +134,9 @@ export const updateNode = async (userId: string, nodeId: string, input: UpdateNo
     where: { id: nodeId },
     data: {
       ...rest,
-      startAt: startAt ? new Date(startAt) : undefined,
-      endAt: endAt ? new Date(endAt) : undefined,
-      reminderAt: reminderAt ? new Date(reminderAt) : undefined,
+      startAt: startAt !== undefined ? (startAt ? new Date(startAt) : null) : undefined,
+      endAt: endAt !== undefined ? (endAt ? new Date(endAt) : null) : undefined,
+      reminderAt: reminderAt !== undefined ? (reminderAt ? new Date(reminderAt) : null) : undefined,
       // If tagIds provided: replace all tags atomically
       tags: tagIds
         ? {
@@ -145,8 +145,27 @@ export const updateNode = async (userId: string, nodeId: string, input: UpdateNo
           }
         : undefined,
     },
-    include: nodeInclude,
+    include: {
+      ...nodeInclude,
+      source: { select: { id: true } },
+    },
   })
+
+  // ── Status sync ───────────────────────────────────────────────────────────
+  if (input.status) {
+    // If this is a daily-ref copy, sync status back to the original node
+    if (node.sourceNodeId) {
+      await prisma.node.update({
+        where: { id: node.sourceNodeId },
+        data: { status: input.status },
+      })
+    }
+    // Sync status forward to any daily-ref copies of this node
+    await prisma.node.updateMany({
+      where: { sourceNodeId: nodeId },
+      data: { status: input.status },
+    })
+  }
 
   if (reminderAt) {
     const delay = new Date(reminderAt).getTime() - Date.now()

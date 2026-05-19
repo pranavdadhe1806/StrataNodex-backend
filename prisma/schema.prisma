@@ -20,6 +20,9 @@ model User {
   dayEndTime       String           @default("23:59")
   createdAt        DateTime         @default(now())
 
+  dailyFolderId String? // set once on signup — the "Daily Tasks" folder
+  dailyListId   String? // set once on signup — the "Daily Task List"
+
   folders      Folder[]
   tags         Tag[]
   dailyScores  DailyScore[]
@@ -75,6 +78,10 @@ model Node {
   parent   Node?     @relation("NodeChildren", fields: [parentId], references: [id])
   children Node[]    @relation("NodeChildren")
   tags     NodeTag[]
+
+  sourceNodeId String? // if set, this node is a daily-list copy of the source node
+  source       Node?   @relation("DailyRef", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  dailyRefs    Node[]  @relation("DailyRef")
 }
 
 model Tag {
