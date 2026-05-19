@@ -1,5 +1,6 @@
 import prisma from '../config/prisma'
 import { CreateListInput, UpdateListInput } from '../schemas/list.schema'
+import { AppError } from '../utils/AppError'
 
 const assertFolderOwnership = async (userId: string, folderId: string) => {
   const folder = await prisma.folder.findFirst({ where: { id: folderId, userId } })
@@ -59,6 +60,8 @@ export const createList = async (userId: string, input: CreateListInput) => {
 
 export const updateList = async (userId: string, listId: string, input: UpdateListInput) => {
   await assertListOwnership(userId, listId)
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { dailyListId: true } })
+  if (user?.dailyListId === listId) throw new AppError(403, 'Cannot rename the Daily Task List')
   return prisma.list.update({
     where: { id: listId },
     data: input,
@@ -67,5 +70,7 @@ export const updateList = async (userId: string, listId: string, input: UpdateLi
 
 export const deleteList = async (userId: string, listId: string) => {
   await assertListOwnership(userId, listId)
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { dailyListId: true } })
+  if (user?.dailyListId === listId) throw new AppError(403, 'Cannot delete the Daily Task List')
   return prisma.list.delete({ where: { id: listId } })
 }

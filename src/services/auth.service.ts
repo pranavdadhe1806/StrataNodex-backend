@@ -26,6 +26,8 @@ const safeUserSelect = {
   twoFactorMethod: true,
   dayStartTime: true,
   dayEndTime: true,
+  dailyFolderId: true,
+  dailyListId: true,
   createdAt: true,
 }
 
