@@ -46,7 +46,18 @@ const generalLimiter = rateLimit({
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  skip: (req) => req.path.startsWith('/cli-session'), // req.path is relative to /api/auth mount
+  skip: (req) => {
+    // Only rate-limit actual auth mutation endpoints (login, register, 2fa, password reset).
+    // Skip /me (token validation) and cli-session — these are called on every startup.
+    const path = req.path
+    return (
+      path.startsWith('/cli-session') ||
+      path === '/me' ||
+      path.startsWith('/verify-email') ||
+      path.startsWith('/verify-phone') ||
+      path.startsWith('/resend-otp')
+    )
+  },
   message: { error: 'Too many attempts, please try again later' },
 })
 const otpLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 3 })
