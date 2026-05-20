@@ -24,3 +24,39 @@ export async function sendOtpEmail(to: string, otp: string): Promise<void> {
     `,
   });
 }
+
+export async function sendDailyReminderEmail(
+  to: string,
+  username: string,
+  formattedMessage: string
+): Promise<void> {
+  const htmlMessage = formattedMessage
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>')
+    .replace(/📁 (.+)/g, '<strong>📁 $1</strong>')
+    .replace(/📋 (.+)/g, '&nbsp;&nbsp;📋 $1')
+
+  await client.transactionalEmails.sendTransacEmail({
+    subject: '📋 Your StrataNodex Daily Tasks',
+    sender: {
+      name: 'StrataNodex',
+      email: process.env.BREVO_SENDER_EMAIL as string,
+    },
+    to: [{ email: to }],
+    htmlContent: `
+      <div style="font-family: 'Poppins', sans-serif; background: #1B1D21; color: #EDEFF3; padding: 32px; border-radius: 12px; max-width: 600px;">
+        <h2 style="color: #00bfff; margin-bottom: 24px;">StrataNodex</h2>
+        <div style="line-height: 1.8; font-size: 15px;">
+          ${htmlMessage}
+        </div>
+        <hr style="border-color: #32363C; margin: 24px 0;" />
+        <p style="color: #7D828B; font-size: 12px;">
+          You're receiving this because you enabled daily reminders.
+          <a href="${process.env.WEB_APP_URL}/settings" style="color: #00bfff;">Manage preferences</a>
+        </p>
+      </div>
+    `,
+  });
+}

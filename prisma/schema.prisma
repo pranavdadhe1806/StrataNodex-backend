@@ -23,6 +23,16 @@ model User {
   dailyFolderId String? // set once on signup — the "Daily Tasks" folder
   dailyListId   String? // set once on signup — the "Daily Task List"
 
+  // Notification preferences
+  telegramChatId     String?
+  telegramEnabled    Boolean          @default(false)
+  emailNotifEnabled  Boolean          @default(false)
+  emailNotifAddress  String?
+  reminderTime       String           @default("08:00")
+  reminderTimezone   String           @default("Asia/Kolkata")
+  telegramLinkCode   String?
+  telegramLinkExpiry DateTime?
+
   folders      Folder[]
   tags         Tag[]
   dailyScores  DailyScore[]
