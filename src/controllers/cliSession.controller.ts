@@ -44,9 +44,9 @@ export const poll = async (req: Request, res: Response, next: NextFunction): Pro
  */
 export const complete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Verify shared secret — only our website should call this
+    // Verify shared secret — only enforced when CLI_SESSION_SECRET is configured
     const secret = req.headers['x-cli-session-secret']
-    if (secret !== process.env.CLI_SESSION_SECRET) {
+    if (process.env.CLI_SESSION_SECRET && secret !== process.env.CLI_SESSION_SECRET) {
       res.status(403).json({ error: 'Forbidden' })
       return
     }

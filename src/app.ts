@@ -32,6 +32,7 @@ app.use(cors({
     }
   },
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-cli-session-secret'],
 }))
 app.use(morgan('dev'))
 app.use(express.json())
