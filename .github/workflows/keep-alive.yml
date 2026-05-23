@@ -11,13 +11,13 @@ jobs:
     steps:
       - name: Ping Render health endpoint (with retry)
         run: |
-          echo "Pinging https://stratanodex-backend.onrender.com/health ..."
+          echo "Pinging https://api.stratanodex.online/health ..."
           for i in 1 2 3; do
             response=$(curl -fsS -o /dev/null -w "%{http_code}" \
               --max-time 60 \
               --retry 2 \
               --retry-delay 5 \
-              https://stratanodex-backend.onrender.com/health)
+              https://api.stratanodex.online/health)
             if [ "$response" = "200" ]; then
               echo "✅ Attempt $i: Service is alive (HTTP $response)"
               exit 0
