@@ -11,9 +11,9 @@ export const create = async (req: Request, res: Response, next: NextFunction): P
     const { code, expiresAt } = await cliSessionService.createCliSession()
 
     // The URL the CLI will open in the browser
-    // In dev: http://localhost:5173/auth/cli?session=<code>
-    // In prod: https://stratanodex-landing-page.vercel.app/#auth?session=<code>
-    const baseUrl = process.env.WEB_APP_URL ?? 'https://stratanodex-landing-page.vercel.app'
+    // In dev: http://localhost:3001/?session=<code>#auth
+    // In prod: https://stratanodex.online/?session=<code>#auth
+    const baseUrl = process.env.WEB_APP_URL ?? 'https://stratanodex.online'
     const url = `${baseUrl}/?session=${code}#auth`
 
     res.status(201).json({ code, url, expiresAt })

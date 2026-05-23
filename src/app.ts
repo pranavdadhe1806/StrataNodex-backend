@@ -23,10 +23,23 @@ app.set('trust proxy', 1)
 
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet())
+// Custom domains that are always allowed regardless of ALLOWED_ORIGINS env var
+const CUSTOM_DOMAINS = [
+  'https://stratanodex.online',
+  'https://www.stratanodex.online',
+  'https://app.stratanodex.online',
+  'https://api.stratanodex.online',
+]
+
 app.use(cors({
   origin: function (origin, callback) {
-    const allowed = env.ALLOWED_ORIGINS.split(',');
-    if (!origin || allowed.includes(origin) || /\.vercel\.app$/.test(origin)) {
+    const allowed = env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+    if (
+      !origin ||
+      allowed.includes(origin) ||
+      CUSTOM_DOMAINS.includes(origin) ||
+      /\.vercel\.app$/.test(origin)
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

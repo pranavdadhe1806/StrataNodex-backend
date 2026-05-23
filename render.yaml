@@ -24,6 +24,25 @@ services:
           type: redis
           name: stratanodex-redis
           property: connectionString
+      # ── CORS: comma-separated (no spaces). Include all origins that call the API.
+      # Production: https://stratanodex.online,https://www.stratanodex.online,https://app.stratanodex.online
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # ── CLI auth browser redirect target (landing page URL) ────────────
+      # Production: https://stratanodex.online
+      - key: WEB_APP_URL
+        sync: false
+      # ── Shared secret between landing page and backend for CLI sessions ─
+      - key: CLI_SESSION_SECRET
+        sync: false
+      # ── Telegram bot token for daily reminders ─────────────────────────
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      # ── Brevo transactional email ───────────────────────────────────────
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
 
   # ─── Redis Service ───────────────────────────────────────────────────────
   - type: redis
