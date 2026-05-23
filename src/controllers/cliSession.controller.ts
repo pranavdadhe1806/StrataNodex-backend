@@ -11,10 +11,10 @@ export const create = async (req: Request, res: Response, next: NextFunction): P
     const { code, expiresAt } = await cliSessionService.createCliSession()
 
     // The URL the CLI will open in the browser
-    // In dev: http://localhost:3001/?session=<code>#auth
-    // In prod: https://stratanodex.online/?session=<code>#auth
+    // In dev: http://localhost:3001/auth?session=<code>
+    // In prod: https://stratanodex.online/auth?session=<code>
     const baseUrl = process.env.WEB_APP_URL ?? 'https://stratanodex.online'
-    const url = `${baseUrl}/?session=${code}#auth`
+    const url = `${baseUrl}/auth?session=${code}`
 
     res.status(201).json({ code, url, expiresAt })
   } catch (err) {
