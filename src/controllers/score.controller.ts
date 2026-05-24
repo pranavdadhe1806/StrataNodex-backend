@@ -2,6 +2,19 @@ import { Request, Response, NextFunction } from 'express'
 import * as scoreService from '../services/score.service'
 
 /**
+ * GET /api/scores/summary
+ * Returns live completion stats per folder and list (not stored).
+ */
+export const getSummary = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const summary = await scoreService.getScoreSummary(req.user!.id)
+    res.json(summary)
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
  * GET /api/scores
  * GET /api/scores?listId=xxx
  * GET /api/scores?limit=60

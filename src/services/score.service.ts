@@ -1,5 +1,52 @@
 import prisma from '../config/prisma'
 
+// ─── 3B: Live Summary ────────────────────────────────────────────────────────
+
+/**
+ * Returns a live snapshot of completion stats for every folder and list.
+ * Not stored — computed on the fly from current node states.
+ */
+export const getScoreSummary = async (userId: string) => {
+  const folders = await prisma.folder.findMany({
+    where: { userId },
+    include: {
+      lists: {
+        include: { nodes: { select: { status: true } } },
+        orderBy: { position: 'asc' },
+      },
+    },
+    orderBy: { position: 'asc' },
+  })
+
+  return folders.map((folder) => {
+    const lists = folder.lists.map((list) => {
+      const total = list.nodes.length
+      const done = list.nodes.filter((n) => n.status === 'DONE').length
+      const inProgress = list.nodes.filter((n) => n.status === 'IN_PROGRESS').length
+      return {
+        id: list.id,
+        name: list.name,
+        totalTasks: total,
+        doneTasks: done,
+        inProgressTasks: inProgress,
+        completionPct: total > 0 ? Math.round((done / total) * 100) : 0,
+      }
+    })
+
+    const totalTasks = lists.reduce((s, l) => s + l.totalTasks, 0)
+    const doneTasks = lists.reduce((s, l) => s + l.doneTasks, 0)
+
+    return {
+      id: folder.id,
+      name: folder.name,
+      totalTasks,
+      doneTasks,
+      completionPct: totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0,
+      lists,
+    }
+  })
+}
+
 // ─── Scoring formula (from PLAN.md) ──────────────────────────────────────────
 //   ≥ 90% done  → +3
 //   60–89%      → +2
