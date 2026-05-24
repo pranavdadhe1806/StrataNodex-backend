@@ -126,6 +126,39 @@ export const getMe = async (userId: string) => {
   })
 }
 
+// ─── Update Profile ──────────────────────────────────────────────────────────
+
+export const updateProfile = async (
+  userId: string,
+  data: {
+    name?: string
+    username?: string | null
+    phone?: string | null
+    dayStartTime?: string
+    dayEndTime?: string
+  },
+) => {
+  if (data.username) {
+    const taken = await prisma.user.findFirst({
+      where: { username: data.username, NOT: { id: userId } },
+    })
+    if (taken) throw new AppError(409, 'Username already taken')
+  }
+
+  if (data.phone) {
+    const taken = await prisma.user.findFirst({
+      where: { phone: data.phone, NOT: { id: userId } },
+    })
+    if (taken) throw new AppError(409, 'Phone number already in use')
+  }
+
+  return prisma.user.update({
+    where: { id: userId },
+    data,
+    select: safeUserSelect,
+  })
+}
+
 // ─── Phone OTP Login ──────────────────────────────────────────────────────────
 
 export const requestPhoneOtp = async (phone: string) => {

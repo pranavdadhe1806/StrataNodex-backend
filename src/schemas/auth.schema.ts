@@ -50,7 +50,26 @@ export const verify2FASchema = z.object({
   code: z.string().length(6),
 })
 
+export const updateProfileSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  username: z
+    .string()
+    .min(3)
+    .max(30)
+    .regex(/^[a-z0-9_]+$/, 'Lowercase letters, numbers, underscores only')
+    .optional()
+    .nullable(),
+  phone: z
+    .string()
+    .regex(/^\+[1-9]\d{6,14}$/, 'E.164 format e.g. +919876543210')
+    .optional()
+    .nullable(),
+  dayStartTime: z.string().regex(/^\d{2}:\d{2}$/, 'HH:mm format').optional(),
+  dayEndTime: z.string().regex(/^\d{2}:\d{2}$/, 'HH:mm format').optional(),
+})
+
 // Type exports
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
 export type LoginInput = z.infer<typeof loginSchema>
 export type PhoneOtpRequestInput = z.infer<typeof phoneOtpRequestSchema>

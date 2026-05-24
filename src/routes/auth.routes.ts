@@ -10,6 +10,7 @@ import {
   resetPasswordSchema,
   enable2FASchema,
   verify2FASchema,
+  updateProfileSchema,
 } from '../schemas/auth.schema'
 import { verifyOtpSchema, resendOtpSchema } from '../schemas/otp.schema'
 import * as authController from '../controllers/auth.controller'
@@ -32,6 +33,7 @@ router.post('/2fa/verify', validate(verify2FASchema), authController.verify2FA)
 // ─── Protected ────────────────────────────────────────────────────────────────
 
 router.get('/me', authenticate, authController.me)
+router.patch('/me', authenticate, validate(updateProfileSchema), authController.updateMe)
 
 router.post('/verify-email', authenticate, validate(verifyOtpSchema), authController.verifyEmail)
 router.post('/verify-phone', authenticate, validate(verifyOtpSchema), authController.verifyPhone)

@@ -31,6 +31,15 @@ export const me = async (req: Request, res: Response, next: NextFunction): Promi
   }
 }
 
+export const updateMe = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const user = await authService.updateProfile(req.user!.id, req.body)
+    res.json(user)
+  } catch (err) {
+    next(err)
+  }
+}
+
 // ─── Phone OTP Login ──────────────────────────────────────────────────────────
 
 export const phoneLogin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
