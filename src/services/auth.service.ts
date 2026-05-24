@@ -18,6 +18,7 @@ const signToken = (userId: string): string =>
 const safeUserSelect = {
   id: true,
   email: true,
+  username: true,
   phone: true,
   name: true,
   isEmailVerified: true,
@@ -37,13 +38,31 @@ export const registerWithPassword = async (input: {
   email: string
   password: string
   name?: string
+  username?: string
+  phone?: string
 }) => {
   const existing = await prisma.user.findUnique({ where: { email: input.email } })
   if (existing) throw new AppError(409, 'Email already in use')
 
+  if (input.username) {
+    const takenUsername = await prisma.user.findUnique({ where: { username: input.username } })
+    if (takenUsername) throw new AppError(409, 'Username already taken')
+  }
+
+  if (input.phone) {
+    const takenPhone = await prisma.user.findUnique({ where: { phone: input.phone } })
+    if (takenPhone) throw new AppError(409, 'Phone number already in use')
+  }
+
   const passwordHash = await bcrypt.hash(input.password, 12)
   const user = await prisma.user.create({
-    data: { email: input.email, passwordHash, name: input.name },
+    data: {
+      email: input.email,
+      passwordHash,
+      name: input.name,
+      username: input.username ?? null,
+      phone: input.phone ?? null,
+    },
     select: safeUserSelect,
   })
 
@@ -65,7 +84,11 @@ export const registerWithPassword = async (input: {
 // ─── Login ───────────────────────────────────────────────────────────────────
 
 export const loginWithPassword = async (input: { email: string; password: string }) => {
-  const user = await prisma.user.findUnique({ where: { email: input.email } })
+  // `email` field accepts either an email address or a username
+  const isEmail = input.email.includes('@')
+  const user = isEmail
+    ? await prisma.user.findUnique({ where: { email: input.email } })
+    : await prisma.user.findUnique({ where: { username: input.email } })
   if (!user) throw new AppError(401, 'Invalid credentials')
   if (!user.passwordHash) throw new AppError(401, 'This account uses OTP login')
 

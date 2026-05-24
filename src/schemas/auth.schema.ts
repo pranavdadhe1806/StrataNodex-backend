@@ -2,12 +2,22 @@ import { z } from 'zod'
 
 export const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(6),
   name: z.string().optional(),
+  username: z
+    .string()
+    .min(3)
+    .max(30)
+    .regex(/^[a-z0-9_]+$/, 'Username may only contain lowercase letters, numbers, and underscores')
+    .optional(),
+  phone: z
+    .string()
+    .regex(/^\+[1-9]\d{6,14}$/, 'Phone must be in E.164 format e.g. +919876543210')
+    .optional(),
 })
 
 export const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string(), // accepts email address OR username
   password: z.string(),
 })
 

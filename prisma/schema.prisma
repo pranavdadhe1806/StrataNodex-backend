@@ -9,6 +9,7 @@ datasource db {
 model User {
   id               String           @id @default(cuid())
   email            String           @unique
+  username         String?          @unique // lowercase alphanumeric + underscores
   phone            String?          @unique // E.164 format e.g. +919876543210
   passwordHash     String? // optional — OTP-only signup has no password
   name             String?
