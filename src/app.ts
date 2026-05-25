@@ -38,7 +38,8 @@ app.use(cors({
       !origin ||
       allowed.includes(origin) ||
       CUSTOM_DOMAINS.includes(origin) ||
-      /\.vercel\.app$/.test(origin)
+      /\.vercel\.app$/.test(origin) ||
+      /^http:\/\/localhost(:\d+)?$/.test(origin)
     ) {
       callback(null, true);
     } else {
