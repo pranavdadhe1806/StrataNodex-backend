@@ -183,10 +183,25 @@ export const updateNode = async (userId: string, nodeId: string, input: UpdateNo
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
 
+// IMPORTANT: The schema uses ON DELETE SET NULL (not CASCADE) on the self-referential
+// parentId FK. Deleting a parent node directly would null-out its children's parentId,
+// making them appear as orphaned root-level nodes in the UI.
+// We must delete the subtree recursively (children first, then the parent).
+async function deleteSubtree(nodeId: string): Promise<void> {
+  const children = await prisma.node.findMany({
+    where: { parentId: nodeId },
+    select: { id: true },
+  })
+  // Recurse into children first so leaves are deleted before their parents
+  for (const child of children) {
+    await deleteSubtree(child.id)
+  }
+  await prisma.node.delete({ where: { id: nodeId } })
+}
+
 export const deleteNode = async (userId: string, nodeId: string) => {
   await assertNodeOwnership(userId, nodeId)
-  // Prisma schema has onDelete: Cascade for children via self-referential relation
-  return prisma.node.delete({ where: { id: nodeId } })
+  return deleteSubtree(nodeId)
 }
 
 // ─── Move (reparent + reposition) ─────────────────────────────────────────────
