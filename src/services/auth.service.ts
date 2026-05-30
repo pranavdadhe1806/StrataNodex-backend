@@ -131,7 +131,6 @@ export const getMe = async (userId: string) => {
 export const updateProfile = async (
   userId: string,
   data: {
-    name?: string
     username?: string | null
     phone?: string | null
     dayStartTime?: string
@@ -152,9 +151,11 @@ export const updateProfile = async (
     if (taken) throw new AppError(409, 'Phone number already in use')
   }
 
+  // name and email are immutable — never update them here
+  const { username, phone, dayStartTime, dayEndTime } = data
   return prisma.user.update({
     where: { id: userId },
-    data,
+    data: { username, phone, dayStartTime, dayEndTime },
     select: safeUserSelect,
   })
 }

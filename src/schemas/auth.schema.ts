@@ -51,7 +51,7 @@ export const verify2FASchema = z.object({
 })
 
 export const updateProfileSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  // name and email are immutable after registration
   username: z
     .string()
     .min(3)
