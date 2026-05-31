@@ -10,7 +10,7 @@ export const getFolders = async (userId: string) => {
   return prisma.folder.findMany({
     where: { userId },
     orderBy: { position: 'asc' },
-    include: { lists: { orderBy: { position: 'asc' } } },
+    include: { _count: { select: { lists: true } } },
   })
 }
 
