@@ -36,7 +36,7 @@ export const getOrCreateDailyList = async (userId: string) => {
 }
 
 /**
- * Returns all nodes in the daily task list, with source list info for refs.
+ * Returns all root-level nodes in the daily task list, with children nested recursively.
  */
 export const getDailyListNodes = async (userId: string) => {
   const { dailyListId } = await getOrCreateDailyList(userId).then(l =>
@@ -45,19 +45,40 @@ export const getDailyListNodes = async (userId: string) => {
   if (!dailyListId) return []
 
   return prisma.node.findMany({
-    where: { listId: dailyListId },
+    where: { listId: dailyListId, parentId: null },
     orderBy: { position: 'asc' },
     include: {
       tags: { include: { tag: true } },
       source: {
         select: { id: true, title: true, listId: true, list: { select: { id: true, name: true } } },
       },
+      children: {
+        orderBy: { position: 'asc' },
+        include: {
+          tags: { include: { tag: true } },
+          source: { select: { id: true, title: true, listId: true, list: { select: { id: true, name: true } } } },
+          children: {
+            orderBy: { position: 'asc' },
+            include: {
+              tags: { include: { tag: true } },
+              source: { select: { id: true, title: true, listId: true, list: { select: { id: true, name: true } } } },
+              children: {
+                orderBy: { position: 'asc' },
+                include: {
+                  tags: { include: { tag: true } },
+                  source: { select: { id: true, title: true, listId: true, list: { select: { id: true, name: true } } } },
+                },
+              },
+            },
+          },
+        },
+      },
     },
   })
 }
 
 /**
- * Copies a node from another list into the Daily Task List as a linked ref.
+ * Copies a node AND its entire subtree from another list into the Daily Task List.
  * If a ref already exists for this node today, returns it without duplicating.
  */
 export const addToDaily = async (userId: string, sourceNodeId: string) => {
@@ -71,6 +92,7 @@ export const addToDaily = async (userId: string, sourceNodeId: string) => {
   // Guard: source node must belong to this user
   const source = await prisma.node.findFirst({
     where: { id: sourceNodeId, list: { folder: { userId } } },
+    include: { tags: { include: { tag: true } } },
   })
   if (!source) throw new Error('Node not found')
 
@@ -80,22 +102,49 @@ export const addToDaily = async (userId: string, sourceNodeId: string) => {
   })
   if (existing) return existing
 
-  // Get current max position
+  // Get current max position for new root-level entries
   const last = await prisma.node.findFirst({
-    where: { listId: dailyListId },
+    where: { listId: dailyListId, parentId: null },
     orderBy: { position: 'desc' },
     select: { position: true },
   })
+  const rootPosition = (last?.position ?? -1) + 1
 
-  return prisma.node.create({
-    data: {
-      title: source.title,
-      status: source.status,
-      priority: source.priority,
-      listId: dailyListId,
-      sourceNodeId: source.id,
-      position: (last?.position ?? -1) + 1,
-    },
+  // Recursively copy the node and all its descendants
+  const copySubtree = async (
+    srcNodeId: string,
+    parentDailyId: string | null,
+    position: number,
+  ): Promise<void> => {
+    const srcNode = await prisma.node.findUnique({
+      where: { id: srcNodeId },
+      include: { children: { orderBy: { position: 'asc' } } },
+    })
+    if (!srcNode) return
+
+    const dailyCopy = await prisma.node.create({
+      data: {
+        title: srcNode.title,
+        status: srcNode.status,
+        priority: srcNode.priority,
+        listId: dailyListId,
+        parentId: parentDailyId,
+        sourceNodeId: srcNode.id,
+        position,
+      },
+    })
+
+    // Recursively copy children
+    for (let i = 0; i < srcNode.children.length; i++) {
+      await copySubtree(srcNode.children[i].id, dailyCopy.id, i)
+    }
+  }
+
+  await copySubtree(sourceNodeId, null, rootPosition)
+
+  // Return the root daily copy with full include
+  return prisma.node.findFirst({
+    where: { sourceNodeId, listId: dailyListId },
     include: {
       tags: { include: { tag: true } },
       source: { select: { id: true, title: true, listId: true, list: { select: { id: true, name: true } } } },
