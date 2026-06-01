@@ -36,42 +36,6 @@ export const getOrCreateDailyList = async (userId: string) => {
 }
 
 /**
- * Auto-adds any root-level node whose startAt date is today into the Daily Task List.
- * Skips nodes already in the daily list (addToDaily is idempotent).
- * Called automatically when the daily list is fetched — no cron needed.
- */
-const syncTodayNodes = async (userId: string, dailyListId: string) => {
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
-  const todayEnd = new Date()
-  todayEnd.setHours(23, 59, 59, 999)
-
-  // Find all top-level nodes (in any of the user's lists, excluding the daily list itself)
-  // whose startAt falls on today and haven't been copied yet
-  const todayNodes = await prisma.node.findMany({
-    where: {
-      parentId: null,
-      startAt: { gte: todayStart, lte: todayEnd },
-      list: { folder: { userId } },
-      listId: { not: dailyListId },
-    },
-    select: { id: true },
-  })
-
-  // Get set of sourceNodeIds already in daily to avoid duplicate API calls
-  const alreadyInDaily = await prisma.node.findMany({
-    where: { listId: dailyListId, sourceNodeId: { not: null } },
-    select: { sourceNodeId: true },
-  })
-  const alreadySet = new Set(alreadyInDaily.map(n => n.sourceNodeId))
-
-  const nodesToAdd = todayNodes.filter(n => !alreadySet.has(n.id))
-  for (const node of nodesToAdd) {
-    await addToDaily(userId, node.id).catch(() => {/* ignore individual failures */})
-  }
-}
-
-/**
  * Returns all root-level nodes in the daily task list, with children nested recursively.
  * Also auto-syncs any nodes whose startAt is today before returning.
  */
@@ -190,6 +154,41 @@ export const addToDaily = async (userId: string, sourceNodeId: string) => {
       source: { select: { id: true, title: true, listId: true, list: { select: { id: true, name: true } } } },
     },
   })
+}
+
+/**
+ * Auto-adds any node whose startAt date is today into the Daily Task List.
+ * Skips nodes already in the daily list (addToDaily is idempotent).
+ * Called automatically when the daily list is fetched — no cron needed.
+ */
+const syncTodayNodes = async (userId: string, dailyListId: string) => {
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  const todayEnd = new Date()
+  todayEnd.setHours(23, 59, 59, 999)
+
+  // Find all nodes (in any of the user's lists, excluding the daily list itself)
+  // whose startAt falls on today
+  const todayNodes = await prisma.node.findMany({
+    where: {
+      startAt: { gte: todayStart, lte: todayEnd },
+      list: { folder: { userId } },
+      listId: { not: dailyListId },
+    },
+    select: { id: true },
+  })
+
+  // Get set of sourceNodeIds already in daily to avoid duplicate API calls
+  const alreadyInDaily = await prisma.node.findMany({
+    where: { listId: dailyListId, sourceNodeId: { not: null } },
+    select: { sourceNodeId: true },
+  })
+  const alreadySet = new Set(alreadyInDaily.map(n => n.sourceNodeId))
+
+  const nodesToAdd = todayNodes.filter(n => !alreadySet.has(n.id))
+  for (const node of nodesToAdd) {
+    await addToDaily(userId, node.id).catch(() => {/* ignore individual failures */})
+  }
 }
 
 /**
