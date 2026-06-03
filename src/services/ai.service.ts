@@ -102,7 +102,7 @@ export async function buildFlatSummary(userId: string): Promise<string> {
 
 // ─── System Prompt ────────────────────────────────────────────────────────────
 
-function buildSystemPrompt(flatSummary: string): string {
+function buildSystemPrompt(flatSummary: string, currentContext?: { folderId?: string; listId?: string }): string {
   // Current IST date/time
   const now = new Date()
   const ist = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
@@ -282,10 +282,12 @@ Folder: FolderName (id: xxx)
 
 "Node" means a root-level node in the list. "SubNode" means a child node nested under another node.
 
-CURRENT DATE AND TIME
+CURRENT CONTEXT
 
 Today: ${dayName}, ${dateStr}
 Current time: ${timeStr} IST
+Currently viewing Folder ID: ${currentContext?.folderId || 'None'}
+Currently viewing List ID: ${currentContext?.listId || 'None'}
 
 USER'S WORKSPACE
 
@@ -300,6 +302,7 @@ export async function callGemini(
   userId: string,
   userMessage: string,
   conversationHistory: AiMessage[],
+  currentContext?: { folderId?: string; listId?: string }
 ): Promise<AiResponse & { usage: { used: number; limit: number } }> {
 
   if (!env.GEMINI_API_KEY) {
@@ -311,7 +314,7 @@ export async function callGemini(
 
   // 2. Build context
   const flatSummary = await buildFlatSummary(userId)
-  const systemPrompt = buildSystemPrompt(flatSummary)
+  const systemPrompt = buildSystemPrompt(flatSummary, currentContext)
 
   // 3. Build Gemini conversation
   const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
