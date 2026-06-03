@@ -41,6 +41,7 @@ model User {
   subscription Subscription?
   payments     Payment[]
   aiUsage      AiUsage[]
+  aiSessions   AiSession[]
 }
 
 model Folder {
@@ -274,4 +275,27 @@ enum PaymentStatus {
   PAID // successfully charged
   FAILED // gateway returned failure
   REFUNDED // full or partial refund issued
+}
+
+// ─── AI Chat Sessions ─────────────────────────────────────────────────────────
+
+model AiSession {
+  id        String      @id @default(cuid())
+  userId    String
+  title     String      // Auto-set to first user message (max 60 chars)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AiChatMessage[]
+}
+
+model AiChatMessage {
+  id        String    @id @default(cuid())
+  sessionId String
+  role      String    // "user" | "assistant"
+  content   String
+  createdAt DateTime  @default(now())
+
+  session AiSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
