@@ -16,6 +16,7 @@ import dailyRoutes from './routes/daily.routes'
 import scoreRoutes from './routes/score.routes'
 import cliSessionRoutes from './routes/cliSession.routes'
 import notificationRoutes from './routes/notification.routes'
+import aiRoutes from './routes/ai.routes'
 
 const app = express()
 
@@ -93,6 +94,7 @@ app.use('/api/tags', tagRoutes)
 app.use('/api/daily', dailyRoutes)
 app.use('/api/scores', scoreRoutes)
 app.use('/api/notifications', notificationRoutes)
+app.use('/api/ai', aiRoutes)
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() })
