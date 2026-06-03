@@ -40,6 +40,7 @@ model User {
   otpCodes     OtpCode[]
   subscription Subscription?
   payments     Payment[]
+  aiUsage      AiUsage[]
 }
 
 model Folder {
@@ -145,6 +146,21 @@ enum Priority {
   LOW
   MEDIUM
   HIGH
+}
+
+// ─── AI Usage (rate limiting) ────────────────────────────────────────────────
+
+model AiUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String   // YYYY-MM-DD
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
 }
 
 // ─── Auth / OTP ──────────────────────────────────────────────────────────────
