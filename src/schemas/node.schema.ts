@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+const dateTimeField = () => z.string().datetime({ offset: true })
+
 export const createNodeSchema = z.object({
   title: z.string().min(1),
   listId: z.string().min(1),
@@ -7,9 +9,9 @@ export const createNodeSchema = z.object({
   status: z.enum(['TODO', 'IN_PROGRESS', 'DONE']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
   notes: z.string().optional(),
-  startAt: z.string().datetime().optional(),
-  endAt: z.string().datetime().optional(),
-  reminderAt: z.string().datetime().optional(),
+  startAt: dateTimeField().optional(),
+  endAt: dateTimeField().optional(),
+  reminderAt: dateTimeField().optional(),
   canvasX: z.number().optional(),
   canvasY: z.number().optional(),
   position: z.number().int().optional(),
@@ -22,9 +24,9 @@ export const createSubNodeSchema = z.object({
   status: z.enum(['TODO', 'IN_PROGRESS', 'DONE']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
   notes: z.string().optional(),
-  startAt: z.string().datetime().optional(),
-  endAt: z.string().datetime().optional(),
-  reminderAt: z.string().datetime().optional(),
+  startAt: dateTimeField().optional(),
+  endAt: dateTimeField().optional(),
+  reminderAt: dateTimeField().optional(),
   canvasX: z.number().optional(),
   canvasY: z.number().optional(),
   position: z.number().int().optional(),
@@ -36,9 +38,9 @@ export const updateNodeSchema = z.object({
   status: z.enum(['TODO', 'IN_PROGRESS', 'DONE']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
   notes: z.string().optional(),
-  startAt: z.string().datetime().optional(),
-  endAt: z.string().datetime().optional(),
-  reminderAt: z.string().datetime().optional(),
+  startAt: dateTimeField().nullable().optional(),
+  endAt: dateTimeField().nullable().optional(),
+  reminderAt: dateTimeField().nullable().optional(),
   canvasX: z.number().optional(),
   canvasY: z.number().optional(),
   position: z.number().int().optional(),
