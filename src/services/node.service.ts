@@ -1,6 +1,31 @@
 import prisma from '../config/prisma'
 import { CreateNodeInput, UpdateNodeInput } from '../schemas/node.schema'
 import { reminderQueue } from '../jobs/queue'
+import { addToDaily, getOrCreateDailyList } from './daily.service'
+
+// ─── Auto-sync helper ─────────────────────────────────────────────────────────
+
+/**
+ * If the node's startAt falls on today (server-local date), add it to the
+ * user's daily list automatically. Errors are swallowed so they never block
+ * the main create/update response.
+ */
+async function maybeSyncToDaily(userId: string, nodeId: string, startAt?: Date | null): Promise<void> {
+  if (!startAt) return
+  const start = new Date(startAt)
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+  const todayEnd = new Date();   todayEnd.setHours(23, 59, 59, 999)
+  if (start >= todayStart && start <= todayEnd) {
+    try {
+      const daily = await getOrCreateDailyList(userId)
+      // Don't sync if the node IS in the daily list already (avoids recursion)
+      const node = await prisma.node.findUnique({ where: { id: nodeId }, select: { listId: true } })
+      if (node && node.listId !== daily.id) {
+        await addToDaily(userId, nodeId)
+      }
+    } catch { /* silent — sync failure must not break the main operation */ }
+  }
+}
 
 // ─── Ownership helpers ────────────────────────────────────────────────────────
 
@@ -86,6 +111,9 @@ export const createNode = async (userId: string, input: CreateNodeInput) => {
     }
   }
 
+  // Auto-add to daily if startAt is today
+  void maybeSyncToDaily(userId, node.id, node.startAt)
+
   return node
 }
 
@@ -119,6 +147,9 @@ export const createSubNode = async (userId: string, parentId: string, input: Omi
       )
     }
   }
+
+  // Auto-add to daily if startAt is today
+  void maybeSyncToDaily(userId, node.id, node.startAt)
 
   return node
 }
@@ -177,6 +208,9 @@ export const updateNode = async (userId: string, nodeId: string, input: UpdateNo
       )
     }
   }
+
+  // Auto-add to daily if startAt is set to today
+  void maybeSyncToDaily(userId, node.id, node.startAt)
 
   return node
 }
