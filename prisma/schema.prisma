@@ -1,3 +1,11 @@
+// ─── Prisma Schema for StrataNodex Backend ───────────────────────────────────────
+// Architecture Overview:
+// - Database: PostgreSQL
+// - Provider: @prisma/adapter-pg (Prisma 7 driver adapter)
+// - Primary Hierarchy: User -> Folder -> List -> Node -> Child Node (Arbitrary Depth)
+// - System Containers: Automated "Daily Tasks" folder (position: -1) & "Daily Task List"
+// ─────────────────────────────────────────────────────────────────────────────
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -6,32 +14,58 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─── User & Identity ──────────────────────────────────────────────────────────
+/// Represents an account in StrataNodex.
+/// Owns all folders, tags, scores, OTP codes, subscriptions, and AI sessions.
 model User {
+  /// Unique identifier (CUID)
   id               String           @id @default(cuid())
+  /// Unique email address for primary authentication and reminders
   email            String           @unique
+  /// Optional unique handle (lowercase alphanumeric + underscores)
   username         String?          @unique // lowercase alphanumeric + underscores
+  /// Optional international phone number in E.164 format (e.g. +919876543210)
   phone            String?          @unique // E.164 format e.g. +919876543210
+  /// Bcrypt-hashed password (optional — OTP-only signup has no password)
   passwordHash     String? // optional — OTP-only signup has no password
+  /// User's display name
   name             String?
+  /// Email verification status
   isEmailVerified  Boolean          @default(false)
+  /// Phone verification status
   isPhoneVerified  Boolean          @default(false)
+  /// Enforces 2FA check on login
   twoFactorEnabled Boolean          @default(false)
+  /// Active 2FA method when twoFactorEnabled is true
   twoFactorMethod  TwoFactorMethod? // null until 2FA is configured
+  /// User's custom daily window start time ("HH:mm" in 24hr, e.g. "00:00")
   dayStartTime     String           @default("00:00")
+  /// User's custom daily window end time ("HH:mm" in 24hr, e.g. "23:59")
   dayEndTime       String           @default("23:59")
   createdAt        DateTime         @default(now())
 
+  // System Pointers (provisioned automatically on registration)
+  /// System Daily Tasks folder ID (position: -1)
   dailyFolderId String? // set once on signup — the "Daily Tasks" folder
+  /// System Daily Task List ID inside the Daily Tasks folder
   dailyListId   String? // set once on signup — the "Daily Task List"
 
   // Notification preferences
+  /// Linked Telegram chat ID from @StrataNodexBot
   telegramChatId     String?
+  /// Master switch for Telegram reminders
   telegramEnabled    Boolean          @default(false)
+  /// Master switch for Email reminders (Brevo)
   emailNotifEnabled  Boolean          @default(false)
+  /// Destination email for notifications (defaults to account email if unset)
   emailNotifAddress  String?
+  /// Preferred time of day ("HH:mm" 24hr) for daily task briefing
   reminderTime       String           @default("08:00")
+  /// Timezone (e.g. "Asia/Kolkata") for scheduling reminders and daily rollover
   reminderTimezone   String           @default("Asia/Kolkata")
+  /// Ephemeral code to link Telegram account via `/link <code>`
   telegramLinkCode   String?
+  /// Expiry timestamp for the active telegramLinkCode
   telegramLinkExpiry DateTime?
 
   folders      Folder[]
@@ -44,10 +78,13 @@ model User {
   aiSessions   AiSession[]
 }
 
+// ─── Folders ──────────────────────────────────────────────────────────────────
+/// High-level container grouping lists. Position -1 is reserved for the system Daily Tasks folder.
 model Folder {
   id        String   @id @default(cuid())
   name      String
   userId    String
+  /// Visual sort position (0-indexed). Position -1 indicates a system folder protected from deletion.
   position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -56,10 +93,13 @@ model Folder {
   lists List[]
 }
 
+// ─── Lists ────────────────────────────────────────────────────────────────────
+/// Specific list of tasks inside a folder (e.g. "Sprint 24", "Daily Task List").
 model List {
   id        String   @id @default(cuid())
   name      String
   folderId  String
+  /// Visual sort position (0-indexed) within parent folder
   position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -70,19 +110,29 @@ model List {
   dailyScores DailyScore[]
 }
 
+// ─── Nodes (Tasks & Hierarchical Subtrees) ────────────────────────────────────
+/// Core task entity. Supports infinite nesting via parentId, canvas coordinates,
+/// and bi-directional status synchronization for daily list copies.
 model Node {
   id         String     @id @default(cuid())
   title      String
   status     NodeStatus @default(TODO)
   priority   Priority   @default(MEDIUM)
   notes      String?
+  /// Scheduled start timestamp (UTC). If today, auto-syncs to Daily List.
   startAt    DateTime?
+  /// Scheduled deadline timestamp (UTC)
   endAt      DateTime?
+  /// Reminder trigger timestamp. Monitored by BullMQ queue in Redis.
   reminderAt DateTime?
+  /// 2D canvas X coordinate (pixels) for Web App infinite canvas view
   canvasX    Float?
+  /// 2D canvas Y coordinate (pixels) for Web App infinite canvas view
   canvasY    Float?
+  /// Sibling sort position (0-indexed)
   position   Int        @default(0)
   listId     String
+  /// Self-referential parent node ID (null for top-level root nodes)
   parentId   String?
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
@@ -92,14 +142,18 @@ model Node {
   children Node[]    @relation("NodeChildren")
   tags     NodeTag[]
 
+  /// If set, this node is an ephemeral daily-list copy pointing to the source node
   sourceNodeId String? // if set, this node is a daily-list copy of the source node
   source       Node?   @relation("DailyRef", fields: [sourceNodeId], references: [id], onDelete: Cascade)
   dailyRefs    Node[]  @relation("DailyRef")
 }
 
+// ─── Tags ─────────────────────────────────────────────────────────────────────
+/// Categorization tags for nodes. Can be global (listId: null) or scoped to a specific list.
 model Tag {
   id     String  @id @default(cuid())
   name   String
+  /// Hex color code for UI badges (e.g. "#3B82F6", default "#888888")
   color  String  @default("#888888")
   userId String
   listId String? // null = global tag | set = local to this list
@@ -111,6 +165,8 @@ model Tag {
   @@unique([userId, listId, name])
 }
 
+// ─── Node-Tag Junction ────────────────────────────────────────────────────────
+/// Explicit many-to-many join table between Node and Tag.
 model NodeTag {
   nodeId String
   tagId  String
@@ -121,6 +177,9 @@ model NodeTag {
   @@id([nodeId, tagId])
 }
 
+// ─── Daily Scores ─────────────────────────────────────────────────────────────
+/// Immutable daily productivity score snapshot for a user/list on a specific date ("YYYY-MM-DD").
+/// Scoring formula: >=90% -> +3, 60-89% -> +2, 30-59% -> +1, 1-29% -> 0, 0% -> -1
 model DailyScore {
   id         String   @id @default(cuid())
   userId     String
@@ -137,12 +196,14 @@ model DailyScore {
   @@unique([userId, listId, date])
 }
 
+/// Lifecycle states for a Node task
 enum NodeStatus {
   TODO
   IN_PROGRESS
   DONE
 }
 
+/// Priority weighting for task scheduling and visual badges
 enum Priority {
   LOW
   MEDIUM
@@ -150,7 +211,7 @@ enum Priority {
 }
 
 // ─── AI Usage (rate limiting) ────────────────────────────────────────────────
-
+/// Tracks daily Google Gemini AI requests per user (default: 20 requests/day, resets midnight IST).
 model AiUsage {
   id        String   @id @default(cuid())
   userId    String
@@ -165,7 +226,7 @@ model AiUsage {
 }
 
 // ─── Auth / OTP ──────────────────────────────────────────────────────────────
-
+/// Bcrypt-hashed one-time passwords for email/phone verification, 2FA, and password reset.
 model OtpCode {
   id        String     @id @default(cuid())
   userId    String
@@ -179,6 +240,8 @@ model OtpCode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// ─── CLI Browser Login Session ────────────────────────────────────────────────
+/// Short-lived 10-minute session bridge for CLI browser login handoff.
 model CliSession {
   id        String    @id @default(cuid())
   code      String    @unique  // random 32-char hex — what the CLI polls with
@@ -188,6 +251,7 @@ model CliSession {
   createdAt DateTime  @default(now())
 }
 
+/// Purpose categories for One-Time Password generation
 enum OtpType {
   VERIFY_EMAIL // sent after registration to confirm email
   VERIFY_PHONE // sent after adding phone to confirm ownership
@@ -195,11 +259,13 @@ enum OtpType {
   PASSWORD_RESET // sent to allow password reset without login
 }
 
+/// Delivery channel for OTP codes
 enum OtpChannel {
   EMAIL
   SMS
 }
 
+/// Supported Two-Factor Authentication channels
 enum TwoFactorMethod {
   EMAIL // OTP via email
   SMS // OTP via SMS
@@ -207,7 +273,7 @@ enum TwoFactorMethod {
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────────
-
+/// Tier definition for product subscriptions (e.g. "Free", "Pro", "Team").
 model Plan {
   id        String       @id @default(cuid())
   name      String       @unique // "Free", "Pro", "Team"
@@ -221,6 +287,7 @@ model Plan {
   subscriptions Subscription[]
 }
 
+/// Active user subscription record linking User to Plan.
 model Subscription {
   id                 String             @id @default(cuid())
   userId             String             @unique // one active plan per user
@@ -239,6 +306,7 @@ model Subscription {
   payments Payment[]
 }
 
+/// Historical payment transaction records.
 model Payment {
   id               String        @id @default(cuid())
   userId           String
@@ -257,11 +325,13 @@ model Payment {
   subscription Subscription? @relation(fields: [subscriptionId], references: [id])
 }
 
+/// Subscription billing intervals
 enum PlanInterval {
   MONTHLY
   YEARLY
 }
 
+/// SaaS subscription statuses
 enum SubscriptionStatus {
   TRIALING // free trial period
   ACTIVE // paid and current
@@ -270,6 +340,7 @@ enum SubscriptionStatus {
   EXPIRED // period ended with no renewal
 }
 
+/// Transaction payment states
 enum PaymentStatus {
   PENDING // payment initiated but not confirmed
   PAID // successfully charged
@@ -278,7 +349,7 @@ enum PaymentStatus {
 }
 
 // ─── AI Chat Sessions ─────────────────────────────────────────────────────────
-
+/// AI conversation session container for Google Gemini task assistant.
 model AiSession {
   id        String      @id @default(cuid())
   userId    String
@@ -290,6 +361,7 @@ model AiSession {
   messages AiChatMessage[]
 }
 
+/// Individual chat message in an AI session.
 model AiChatMessage {
   id        String    @id @default(cuid())
   sessionId String
